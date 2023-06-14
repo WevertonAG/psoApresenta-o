@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Otimização por Enxame de Partículas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script>
+        // Função objetivo (exemplo: função de Rastrigin)
+        function objectiveFunction(x) {
+            let n = x.length;
+            let fitness = 10 * n;
+            for (let i = 0; i < n; i++) {
+                fitness = fitness + x[i]**2 - 10 * Math.cos(2 * Math.PI * x[i]);
+            }
+            return fitness;
+        }
+
+        // Parâmetros do algoritmo
+        let numParticles = 40;
+        let numDimensions = 2;
+        let maxIterations = 10;
+        let lowerBound = -5.12;
+        let upperBound = 5.12;
+
+        // Inicialização
+        let positions = [];
+        let velocities = [];
+        let personalBestPositions = [];
+        let personalBestFitnesses = [];
+        let bestFitness = 100;
+        let bestPosition = new Array(numDimensions).fill(0);
+
+        for (let i = 0; i < numParticles; i++) {
+            let position = [];
+            let velocity = [];
+            let personalBestPosition = [];
+
+            for (let j = 0; j < numDimensions; j++) {
+                position.push(Math.random() * (upperBound - lowerBound) + lowerBound);
+                velocity.push(0);
+                personalBestPosition.push(position[j]);
+            }
+
+            positions.push(position);
+            velocities.push(velocity);
+            personalBestPositions.push(personalBestPosition);
+            personalBestFitnesses.push(Infinity);
+        }
+
+        // Loop de otimização
+        let iteration = 0;
+        function optimize() {
+            // Avaliar o fitness de cada partícula
+            for (let i = 0; i < numParticles; i++) {
+                let fitness = objectiveFunction(positions[i]);
+                if (fitness < personalBestFitnesses[i]) {
+                    personalBestFitnesses[i] = fitness;
+                    personalBestPositions[i] = positions[i].slice();
+
+                    // Verificar se o fitness é o melhor global
+                    if (fitness < bestFitness) {
+                        bestFitness = fitness;
+                        bestPosition = positions[i].slice();
+                    }
+                }
+            }
+
+            // Atualizar velocidades e posições
+            for (let i = 0; i < numParticles; i++) {
+                let r1 = Math.random();
+                let r2 = Math.random();
+
+                for (let j = 0; j < numDimensions; j++) {
+                    velocities[i][j] = 0.729 * velocities[i][j]
+                        + 1.49445 * r1 * (personalBestPositions[i][j] - positions[i][j])
+                        + 1.49445 * r2 * (bestPosition[j] - positions[i][j]);
+
+                    positions[i][j] = positions[i][j] + velocities[i][j];
+
+                    // Limitar as posições dentro dos limites
+                    positions[i][j] = Math.max(positions[i][j], lowerBound);
+                    positions[i][j] = Math.min(positions[i][j], upperBound);
+                }
+            }
+
+            iteration++;
+
+            // Atualizar as partículas na cena 3D
+            for (let i = 0; i < numParticles; i++) {
+                let particleGeometry = new THREE.SphereGeometry(0.04, 1, 1);
+                let particleMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+                let particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                particle.position.set(positions[i][0], positions[i][1], objectiveFunction(positions[i]));
+                scene.add(particle);
+            }
+
+            // Atualizar a melhor partícula na cena 3D
+            let bestParticleGeometry = new THREE.SphereGeometry(0.2, 32, 32);
+            let bestParticleMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+            let bestParticle = new THREE.Mesh(bestParticleGeometry, bestParticleMaterial);
+            bestParticle.position.set(bestPosition[0], bestPosition[1], objectiveFunction(bestPosition));
+            scene.add(bestParticle);
+
+            // Renderizar a cena
+            renderer.render(scene, camera);
+
+            // Verificar se a otimização terminou
+            if (iteration < maxIterations) {
+                requestAnimationFrame(optimize);
+            }
+        }
+
+        // Configurar a cena 3D
+        let scene = new THREE.Scene();
+        let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        let renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        let geometry = new THREE.PlaneGeometry(upperBound - lowerBound, upperBound - lowerBound, 100, 100);
+        let material = new THREE.MeshBasicMaterial({ color: 0xaaaaaa, wireframe: true });
+        let plane = new THREE.Mesh(geometry, material);
+        scene.add(plane);
+
+        camera.position.z = 10;
+
+        optimize();
+    </script>
+</body>
+</html>
